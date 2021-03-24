@@ -52,7 +52,7 @@ kubectl argo rollouts set image golang-sample-app-deployment golang-sample-app-c
 
 To promote the color
 ```
-kubectl argo rollouts promote canary-sample-app-deployment -n canary
+kubectl argo rollouts promote golang-sample-app-deployment -n canary
 ```
 
 To reject or undo the deployment
