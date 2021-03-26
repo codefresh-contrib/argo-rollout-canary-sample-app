@@ -3,13 +3,13 @@ kind: Rollout
 metadata:
   name: golang-sample-app-deployment
 spec:
-  replicas: 6
+  replicas: 4
   strategy:
     canary: 
       canaryService: rollout-canary-preview
       stableService: rollout-canary-active
       steps:
-        - setWeight: 20
+        - setWeight: 25
         - pause: {}
   revisionHistoryLimit: 2
   selector:
