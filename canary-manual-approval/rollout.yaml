@@ -1,0 +1,34 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: golang-sample-app-deployment
+spec:
+  replicas: 6
+  strategy:
+    canary: 
+      canaryService: rollout-canary-preview
+      stableService: rollout-canary-active
+      steps:
+        - setWeight: 20
+        - pause: {}
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: golang-sample-app
+  template:
+    metadata:
+      labels:
+        app: golang-sample-app
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "8080"  
+    spec:
+      containers:
+      - name: golang-sample-app-container
+        image: kostiscodefresh/argo-rollouts-canary-sample-app:{{CF_SHORT_REVISION}}       
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+
