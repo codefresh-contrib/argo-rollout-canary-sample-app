@@ -8,8 +8,18 @@ spec:
     canary: 
       canaryService: rollout-canary-preview
       stableService: rollout-canary-active
+      trafficRouting:
+        smi: 
+          trafficSplitName: rollout-example-traffic-split 
+          rootService: rollout-canary-all-traffic 
       steps:
-        - setWeight: 25
+        - setWeight: 10
+        - setCanaryScale:
+            weight: 25
+        - pause: {}
+        - setWeight: 33
+        - setCanaryScale:
+            weight: 50
         - pause: {}
   revisionHistoryLimit: 2
   selector:
@@ -22,11 +32,12 @@ spec:
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/path: "/metrics"
-        prometheus.io/port: "8080"  
+        prometheus.io/port: "8080"
+        linkerd.io/inject: enabled  
     spec:
       containers:
       - name: golang-sample-app-container
-        image: kostiscodefresh/argo-rollouts-canary-sample-app:{{CF_SHORT_REVISION}}       
+        image: kostiscodefresh/argo-rollouts-canary-sample-app:{{CF_SHORT_REVISION}}        
         ports:
         - name: http
           containerPort: 8080
