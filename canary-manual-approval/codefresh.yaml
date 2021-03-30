@@ -1,0 +1,117 @@
+version: "1.0"
+stages:
+  - prepare
+  - build
+  - 'canary 10%'
+  - 'canary 33%'
+  - finish   
+steps:
+  clone:
+    type: "git-clone"
+    stage: prepare
+    description: "Cloning main repository..."
+    repo: '${{CF_REPO_OWNER}}/${{CF_REPO_NAME}}'
+    revision: "${{CF_BRANCH}}"
+  build_app_image:
+    title: Building Docker Image
+    type: build
+    stage: build
+    image_name: kostiscodefresh/argo-rollouts-canary-sample-app
+    working_directory: "${{clone}}" 
+    tags:
+    - "latest"
+    - '${{CF_SHORT_REVISION}}'
+    dockerfile: Dockerfile
+  start_deployment:
+    title: Deploy to 10% of live traffic
+    stage: 'canary 10%'
+    image: codefresh/cf-deploy-kubernetes:master
+    working_directory: "${{clone}}"
+    commands:
+      - /cf-deploy-kubernetes ./canary-manual-approval/service.yaml 
+      - /cf-deploy-kubernetes ./canary-manual-approval/service-preview.yaml
+      - /cf-deploy-kubernetes ./canary-manual-approval/service-all.yaml  
+      - /cf-deploy-kubernetes ./canary-manual-approval/rollout.yaml   
+    environment:
+      - KUBECONTEXT=mydemoAkscluster@BizSpark Plus
+      - KUBERNETES_NAMESPACE=canary 
+  check_canary_10:
+    fail_fast: false
+    type: pending-approval
+    title: Is canary ok?
+    stage: 'canary 10%'  
+  promote_canary_33:
+    title: Switching 33% traffic to canary
+    stage: 'canary 33%'
+    image: kostiscodefresh/kubectl-argo-rollouts:latest
+    commands:
+      - /app/kubectl-argo-rollouts-linux-amd64 promote golang-sample-app-deployment -n canary --context "mydemoAkscluster@BizSpark Plus"
+    when:
+      steps:
+      - name: check_canary_10
+        on:
+        - approved 
+  abort_deployment_10:
+    title: Discarding canary at 10%
+    stage: 'canary 10%'
+    image: kostiscodefresh/kubectl-argo-rollouts:latest
+    commands:
+      - /app/kubectl-argo-rollouts-linux-amd64 undo golang-sample-app-deployment -n canary --context "mydemoAkscluster@BizSpark Plus" 
+    when:
+      steps:
+      - name: check_canary_10
+        on:
+        - denied         
+  exit_10:
+    title: Stopping pipeline
+    stage: 'canary 10%'
+    image: alpine:39
+    commands:
+      - echo "Canary failed"
+      - exit 1
+    when:
+      steps:
+      - name: check_canary_10
+        on:
+        - denied   
+  check_canary_33:
+    fail_fast: false
+    type: pending-approval
+    title: Is canary ok?
+    stage: 'canary 33%'  
+  promote_canary_full:
+    title: Switching all traffic to canary
+    stage: finish
+    image: kostiscodefresh/kubectl-argo-rollouts:latest
+    commands:
+      - /app/kubectl-argo-rollouts-linux-amd64 promote golang-sample-app-deployment -n canary --context "mydemoAkscluster@BizSpark Plus"
+    when:
+      steps:
+      - name: check_canary_33
+        on:
+        - approved 
+  abort_deployment_33:
+    title: Discarding canary at 33%
+    stage: 'canary 33%'
+    image: kostiscodefresh/kubectl-argo-rollouts:latest
+    commands:
+      - /app/kubectl-argo-rollouts-linux-amd64 undo golang-sample-app-deployment -n canary --context "mydemoAkscluster@BizSpark Plus" 
+    when:
+      steps:
+      - name: check_canary_33
+        on:
+        - denied         
+  exit_33:
+    title: Stopping pipeline
+    stage: 'canary 33%'
+    image: alpine:39
+    commands:
+      - echo "Canary failed"
+      - exit 1
+    when:
+      steps:
+      - name: check_canary_33
+        on:
+        - denied        
+
+  
