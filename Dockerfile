@@ -12,8 +12,12 @@ ARG git_hash
 
 ENV GIT_HASH $git_hash
 
+
 WORKDIR /app
-COPY static/* /app/static/*
+
+COPY static/index.html /app/static/index.html
+COPY static/style.css /app/static/style.css
+
 COPY --from=build-env /tmp/simple-go-app/prometheus-sample-app /app/prometheus-sample-app
 
 EXPOSE 8080
