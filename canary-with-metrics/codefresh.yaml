@@ -1,0 +1,39 @@
+version: "1.0"
+stages:
+  - prepare
+  - build
+  - deploy
+steps:
+  clone:
+    type: "git-clone"
+    stage: prepare
+    description: "Cloning main repository..."
+    repo: '${{CF_REPO_OWNER}}/${{CF_REPO_NAME}}'
+    revision: "${{CF_BRANCH}}"
+  build_app_image:
+    title: Building Docker Image
+    type: build
+    stage: build
+    image_name: kostiscodefresh/argo-rollouts-canary-sample-app
+    working_directory: "${{clone}}" 
+    tags:
+    - "latest"
+    - '${{CF_SHORT_REVISION}}'
+    dockerfile: Dockerfile
+    build_arguments:
+      - git_hash=${{CF_SHORT_REVISION}}
+  start_deployment:
+    title: Start canary
+    stage: deploy
+    image: codefresh/cf-deploy-kubernetes:master
+    working_directory: "${{clone}}"
+    commands:
+      - /cf-deploy-kubernetes ./canary-with-metrics/service.yaml 
+      - /cf-deploy-kubernetes ./canary-with-metrics/service-preview.yaml
+      - /cf-deploy-kubernetes ./canary-with-metrics/service-all.yaml  
+      - /cf-deploy-kubernetes ./canary-with-metrics/analysis.yaml 
+      - /cf-deploy-kubernetes ./canary-with-metrics/rollout.yaml   
+    environment:
+      - KUBECONTEXT=mydemoAkscluster@BizSpark Plus
+      - KUBERNETES_NAMESPACE=canary 
+ 
