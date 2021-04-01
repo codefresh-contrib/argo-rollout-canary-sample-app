@@ -1,0 +1,60 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: golang-sample-app-deployment
+spec:
+  replicas: 4
+  strategy:
+    canary: 
+      canaryService: rollout-canary-preview
+      stableService: rollout-canary-active
+      canaryMetadata:
+        annotations:
+          role: canary
+        labels:
+          role: canary
+      trafficRouting:
+        smi: 
+          trafficSplitName: rollout-example-traffic-split 
+          rootService: rollout-canary-all-traffic 
+      steps:
+        - setWeight: 10
+        - setCanaryScale:
+            weight: 25
+        - pause: {duration: 5m}
+        - setWeight: 33
+        - setCanaryScale:
+            weight: 50
+        - pause: {duration: 5m}
+      analysis:
+        templates:
+        - templateName: success-rate
+        startingStep: 4 # delay starting analysis run until setWeight: 10%
+        args:
+        - name: service-name
+          value: golang-sample-app       
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: golang-sample-app
+  template:
+    metadata:
+      labels:
+        app: golang-sample-app
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "8080"
+        linkerd.io/inject: enabled  
+    spec:
+      containers:
+      - name: golang-sample-app-container
+        image: kostiscodefresh/argo-rollouts-canary-sample-app:{{CF_SHORT_REVISION}}    
+        #image: kostiscodefresh/argo-rollouts-canary-sample-app:d5ad388 
+        #image: kostiscodefresh/argo-rollouts-canary-sample-app:9cccabb
+        #image: kostiscodefresh/argo-rollouts-canary-sample-app:2eeb929       
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/gorilla/mux"
@@ -71,12 +72,19 @@ func init() {
 	prometheus.Register(httpDuration)
 }
 
+func version(w http.ResponseWriter, req *http.Request) {
+	fmt.Fprintln(w, "My application version is "+os.Getenv("GIT_HASH"))
+}
+
 func main() {
 	router := mux.NewRouter()
 	router.Use(prometheusMiddleware)
 
 	// Prometheus endpoint
 	router.Path("/metrics").Handler(promhttp.Handler())
+
+	// Prometheus endpoint
+	router.HandleFunc("/version", version)
 
 	// Serving static files
 	router.PathPrefix("/").Handler(http.FileServer(http.Dir("./static/")))
